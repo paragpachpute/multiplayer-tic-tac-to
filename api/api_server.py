@@ -12,6 +12,3 @@ def get_leaderboard_endpoint():
     leaderboard_data = database.get_leaderboard()
     return jsonify(leaderboard_data)
 
-def run_api_server():
-    """Function to run the Flask API server."""
-    app.run(host=config.HOST, port=config.API_PORT)

@@ -13,7 +13,6 @@ sys.path.insert(0, project_root)
 from server import game_manager, config
 from database import database
 from server.protocol import GameCreatedResponse, GameJoinedResponse, ErrorResponse, MessageType, to_dict
-from api.api_server import run_api_server
 from server.connection import ClientConnection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s')
@@ -83,7 +82,6 @@ async def main_async():
     """Initializes database and starts all servers."""
     database.initialize_database()
     
-    # The handlers now just create the appropriate wrapper and pass to the unified handler.
     async def ws_handler(websocket):
         await connection_handler(ClientConnection(websocket))
 
@@ -95,13 +93,3 @@ async def main_async():
     
     logging.info(f"Unified Server listening on TCP:{config.TCP_PORT} and WS:{config.WS_PORT}")
     await asyncio.gather(tcp_server.serve_forever(), ws_server.wait_closed())
-
-if __name__ == "__main__":
-    api_thread = Thread(target=run_api_server, daemon=True)
-    api_thread.start()
-    logging.info(f"API server starting in a background thread on port {config.API_PORT}.")
-    
-    try:
-        asyncio.run(main_async())
-    except KeyboardInterrupt:
-        logging.info("Server shutting down.")
