@@ -9,7 +9,6 @@ graph TD
     subgraph "Client Applications"
         direction LR
         Browser[Web Browser]
-        Desktop[Python Client]
         Android[Android App]
     end
 
@@ -44,7 +43,6 @@ graph TD
     end
     
     UserA --> Browser
-    UserB --> Desktop
     UserB --> Android
 
     UserC -- "Views Leaderboard" --> Browser
@@ -58,7 +56,6 @@ graph TD
     APIServer -- "Returns Leaderboard JSON" --> Nginx --> Browser
     Nginx -- "Proxies to" --> Port5000 --> APIServer
 
-    Desktop -- "TCP Socket" --> Port5556 --> RoomManager
     Android -- "TCP Socket" --> Port5556 --> RoomManager
     Browser -- "WebSocket" --> Port8765 --> RoomManager
     
