@@ -2,7 +2,14 @@
 
 This document outlines the complete architecture and deployment process for the multiplayer Tic-Tac-Toe platform.
 
-## I. System Architecture Overview
+## I. Core Technologies & Services
+
+This project is deployed using the following key third-party services:
+
+*   **Virtual Private Server (VPS):** The entire backend application is hosted on a **DigitalOcean Droplet**.
+*   **DNS & Proxy:** Domain Name System (DNS) and HTTPS/SSL termination are managed by **Cloudflare**.
+
+## II. System Architecture Overview
 
 The platform operates on a hybrid server model to efficiently handle different types of client communication.
 
