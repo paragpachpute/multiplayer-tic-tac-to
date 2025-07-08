@@ -10,7 +10,6 @@ class ClientConnection:
     """
     def __init__(self, reader, writer=None):
         logging.info(f"Creating ClientConnection for reader: {reader}")
-        # For TCP, reader and writer are separate. For WS, they are the same object.
         self._reader = reader
         self._writer = writer if writer else reader
         self.game_id = None
@@ -20,24 +19,35 @@ class ClientConnection:
 
     @property
     def is_websocket(self) -> bool:
-        """Returns True if the client is a WebSocket connection."""
         return hasattr(self._reader, 'recv')
 
     @property
     def is_tcp(self) -> bool:
-        """Returns True if the client is a TCP connection."""
         return hasattr(self._reader, 'readline')
 
     async def send(self, response_data):
-        """Sends a structured response to the client."""
+        """
+        Sends a structured response to the client.
+        This method uses a try...except block to handle disconnections gracefully.
+        """
         message = json.dumps(response_data)
         try:
             if self.is_websocket:
                 await self._writer.send(message)
             elif self.is_tcp:
-                self._writer.write((message + '\n').encode())
-                await self._writer.drain()
-        except (websockets.exceptions.ConnectionClosed, ConnectionResetError, BrokenPipeError):
+                if not self._writer.is_closing():
+                    self._writer.write((message + '\n').encode())
+                    await self._writer.drain()
+                else:
+                    # If the TCP writer is closing, raise an error to be caught below.
+                    raise ConnectionResetError
+            else:
+                raise TypeError("Unsupported client type")
+        except (websockets.exceptions.ConnectionClosed, ConnectionResetError, BrokenPipeError) as e:
+            # This is now an expected part of the flow.
+            # We log it for information and re-raise it so the main handler knows
+            # that the client has disconnected.
+            logging.info(f"Could not send to {self.get_remote_address()}; connection is closed. Error: {e}")
             raise
 
     async def read(self):

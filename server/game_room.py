@@ -29,14 +29,35 @@ class Game:
         logging.info(f"[Game {self.game_id}] Player {name} ({player_symbol}) joined.")
         return player_symbol
 
+    async def reconnect_client(self, new_client_conn, player_symbol, name):
+        """Replaces a disconnected client with a new connection."""
+        # Find the old, disconnected client object to remove it
+        old_client = None
+        for client in self.clients:
+            if client.player_symbol == player_symbol:
+                old_client = client
+                break
+        
+        if old_client:
+            self.clients.remove(old_client)
+
+        # Add the new client connection
+        new_client_conn.player_symbol = player_symbol
+        new_client_conn.player_name = name
+        new_client_conn.game_id = self.game_id
+        self.clients.add(new_client_conn)
+        
+        self.player_names[player_symbol] = name
+        logging.info(f"[Game {self.game_id}] Player {name} ({player_symbol}) reconnected.")
+
     async def remove_client(self, client_conn):
         self.clients.remove(client_conn)
         logging.info(f"Client {client_conn.player_name} disconnected from Game {self.game_id}")
         if not self.clients:
             self._on_empty(self.game_id)
         else:
-            self.game_over = True
-            await self.broadcast_state()
+            # Don't end the game immediately, allow for reconnection
+            pass
 
     def _check_win(self):
         b = self.board

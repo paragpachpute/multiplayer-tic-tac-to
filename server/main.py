@@ -46,6 +46,21 @@ async def handle_message(message_str, client_conn):
             else:
                 await client_conn.send(to_dict(ErrorResponse(message="Game not found.")))
 
+        elif msg_type == MessageType.RECONNECT:
+            game_id = message.get("game_id")
+            game = game_manager.get_game(game_id)
+            if game:
+                await game.reconnect_client(
+                    client_conn,
+                    message.get("player_symbol"),
+                    message.get("name")
+                )
+                await game.broadcast_state()
+            else:
+                # If the game doesn't exist, the client's state is stale.
+                # We can just ignore this, and the client will show the lobby.
+                pass
+
         elif client_conn.game_id:
             game = game_manager.get_game(client_conn.game_id)
             if game:

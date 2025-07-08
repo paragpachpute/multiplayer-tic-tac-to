@@ -4,14 +4,19 @@ from enum import Enum
 
 class MessageType(str, Enum):
     """Defines the valid types for server-client communication."""
+    # Server-to-client
     GAME_STATE = "gameState"
     GAME_CREATED = "game_created"
     GAME_JOINED = "game_joined"
     ERROR = "error"
+    
+    # Client-to-server
     CREATE_GAME = "create_game"
     JOIN_GAME = "join_game"
     MOVE = "move"
     RESTART = "restart"
+    RECONNECT = "reconnect" # New
+
 
 # --- Data Structures for Game State ---
 @dataclass
