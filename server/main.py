@@ -79,8 +79,19 @@ async def connection_handler(client_conn):
     logging.info(f"New connection from {client_conn.get_remote_address()}")
     try:
         while True:
-            message = await client_conn.read()
-            await handle_message(message, client_conn)
+            try:
+                # Wait for a message from the client with a 15-minute timeout.
+                message = await asyncio.wait_for(client_conn.read(), timeout=900.0)
+                
+                # If the message is empty, it means the client has disconnected.
+                if not message:
+                    logging.info(f"Client {client_conn.get_remote_address()} sent an empty message, closing connection.")
+                    break
+                
+                await handle_message(message, client_conn)
+            except asyncio.TimeoutError:
+                logging.info(f"Connection from {client_conn.get_remote_address()} timed out after 15 minutes. Closing.")
+                break
     except (websockets.exceptions.ConnectionClosedError, ConnectionResetError, asyncio.IncompleteReadError):
         logging.info(f"Connection closed by client {client_conn.get_remote_address()}")
     except Exception as e:
