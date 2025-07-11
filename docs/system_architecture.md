@@ -3,7 +3,7 @@ graph TD
     subgraph "End Users"
         UserA[Player 1]
         UserB[Player 2]
-        UserC[Leaderboard Viewer]
+        UserC[Project Viewer]
     end
 
     subgraph "Client Applications"
@@ -42,22 +42,25 @@ graph TD
         end
     end
     
-    UserA --> Browser
-    UserB --> Android
-
-    UserC -- "Views Leaderboard" --> Browser
+    UserA -- "Plays Tic-Tac-Toe" --> Browser
+    UserB -- "Plays Tic-Tac-Toe" --> Android
+    UserC -- "Views Landing Page" --> Browser
 
     %% Data Flows
-    Browser -- "HTTP for Web Page" --> Port80 --> Nginx
-    Nginx -- "Serves HTML/CSS/JS" --> Browser
+    Browser -- "HTTP GET /" --> Port80 --> Nginx
+    Nginx -- "Serves Landing Page" --> Browser
     
-    Browser -- "HTTP GET /leaderboard" --> Port80 --> Nginx
+    Browser -- "HTTP GET /ttt/" --> Port80 --> Nginx
+    Nginx -- "Serves TTT App" --> Browser
+
+    Browser -- "HTTP GET /ttt/api/leaderboard" --> Port80 --> Nginx
+    Nginx -- "Proxies to /api/leaderboard" --> Port5000 --> APIServer
     APIServer -- "Reads from" --> Database
     APIServer -- "Returns Leaderboard JSON" --> Nginx --> Browser
-    Nginx -- "Proxies to" --> Port5000 --> APIServer
 
     Android -- "TCP Socket" --> Port5556 --> RoomManager
-    Browser -- "WebSocket" --> Port8765 --> RoomManager
+    Browser -- "WebSocket to /ttt/ws" --> Port80 --> Nginx
+    Nginx -- "Proxies to /ws" --> Port8765 --> RoomManager
     
     RoomManager --> GameRoom1
     RoomManager --> GameRoom2

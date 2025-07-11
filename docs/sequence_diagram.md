@@ -44,14 +44,23 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant BrowserClient
+    participant Nginx
     participant APIServer
     participant Database
 
-    BrowserClient->>APIServer: HTTP GET /leaderboard
+    BrowserClient->>Nginx: HTTP GET /ttt/api/leaderboard
+    activate Nginx
+    Nginx->>APIServer: Proxies request to /leaderboard
+    deactivate Nginx
+    
     activate APIServer
     APIServer->>Database: SELECT game results
     Database-->>APIServer: Returns game data
     APIServer->>APIServer: Calculates ranks and scores
-    APIServer-->>BrowserClient: Responds with JSON Leaderboard Data
+    APIServer-->>Nginx: Responds with JSON Leaderboard Data
     deactivate APIServer
+    
+    activate Nginx
+    Nginx-->>BrowserClient: Relays JSON Response
+    deactivate Nginx
 ```

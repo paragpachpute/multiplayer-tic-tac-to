@@ -24,23 +24,24 @@ The platform operates on a hybrid server model to efficiently handle different t
 
 The project code is deployed on the server with the following structure:
 
-*   `/root/multiplayer-tic-tac-to/`: The main project root cloned from Git.
+*   `/root/multiplayer-tic-tac-to/`: The main project root for the backend servers, cloned from Git.
     *   `server/`: The real-time game server modules.
     *   `api/`: The leaderboard API server module.
     *   `database/`: The database interaction module.
     *   `run_game_server.py`: The script to start the game server.
     *   `run_api_server.py`: The script to start the API server.
     *   `venv/`: The Python virtual environment containing all dependencies.
-*   `/var/www/tic-tac-toe/`: The root directory for the static web client files (`index.html`, `style.css`, `script.js`).
+*   `/var/www/html/`: The root directory for the main portfolio landing page.
+*   `/var/www/ttt/`: The root directory for the Tic-Tac-Toe web client, cloned from its own Git repository.
 
 ## II. Connection Protocols and Ports
 
-| Service         | Protocol      | Listens On (Internal) | Accessed Via (Public)                | Purpose                               |
-|-----------------|---------------|-----------------------|--------------------------------------|---------------------------------------|
-| Nginx           | HTTP / HTTPS  | Port 80               | `http://pparag.dev`                  | Main entry point, serves web client   |
-| **Game Server** | **WebSocket** | `127.0.0.1:8765`      | `wss://pparag.dev/ws`                | Web Client Gameplay                   |
-| **Game Server** | **TCP**       | `0.0.0.0:5556`        | `your_server_ip:5556`                | Native (Python/Android) Client Gameplay |
-| **API Server**  | **HTTP**      | `127.0.0.1:5000`      | `https://pparag.dev/api/leaderboard` | Leaderboard Data                      |
+| Service         | Protocol      | Listens On (Internal) | Accessed Via (Public)                  | Purpose                               |
+|-----------------|---------------|-----------------------|----------------------------------------|---------------------------------------|
+| Nginx           | HTTP / HTTPS  | Port 80               | `http://pparag.dev`                    | Main entry point, serves landing page |
+| **Game Server** | **WebSocket** | `127.0.0.1:8765`      | `wss://pparag.dev/ttt/ws`              | Web Client Gameplay                   |
+| **Game Server** | **TCP**       | `0.0.0.0:5556`        | `your_server_ip:5556`                  | Native (Python/Android) Client Gameplay |
+| **API Server**  | **HTTP**      | `127.0.0.1:5000`      | `https://pparag.dev/ttt/api/leaderboard` | Leaderboard Data                      |
 
 ## III. Server Configuration Files
 
@@ -56,14 +57,22 @@ server {
   listen 80;
   server_name pparag.dev www.pparag.dev;
 
-  # Location for the static web client files
+  # Change 1: The root location now points to the new landing page directory.
   location / {
-    root /var/www/tic-tac-toe;
+    root /var/www/html;
     try_files $uri $uri/ /index.html;
   }
 
-  # Location for the API server
-  location /api/ {
+  # Change 2: A new location block is added for the Tic-Tac-Toe app.
+  # It uses 'alias' to serve files from a different directory.
+  location /ttt/ {
+    alias /var/www/ttt/;
+    try_files $uri $uri/ /index.html;
+  }
+
+  # Change 3: The API location is updated to match the new path.
+  # The proxy_pass URL is unchanged and will work correctly.
+  location /ttt/api/ {
     proxy_pass http://143.198.107.112:5000/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -72,9 +81,8 @@ server {
     proxy_redirect off;
   }
 
-  # Location for the WebSocket game server
-  # This is the endpoint your web client will connect to
-  location /ws {
+  # Change 4: The WebSocket location is updated to match the new path.
+  location /ttt/ws {
     proxy_pass http://143.198.107.112:8765;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
