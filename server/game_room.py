@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Dict, Optional
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
 
@@ -12,7 +13,7 @@ class Game:
         self.current_player = "X"
         self.game_over = False
         self.winner = None
-        self.player_names = {"X": None, "O": None}
+        self.player_names: Dict[str, Optional[str]] = {"X": None, "O": None}
         self._on_empty = on_empty
 
     async def add_client(self, client_conn, name):

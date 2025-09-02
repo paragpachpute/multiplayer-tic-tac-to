@@ -21,11 +21,15 @@ class MessageType(str, Enum):
 # --- Data Structures for Game State ---
 @dataclass
 class GameState:
-    board: List[List[Optional[str]]]
+    board: Optional[List[List[Optional[str]]]]
     current_player: str
     game_over: bool
     winner: Optional[str]
     player_names: Dict[str, Optional[str]]
+    # Fields for Ultimate Tic-Tac-Toe
+    micro_boards: Optional[List[List[List[Optional[str]]]]] = None
+    macro_board: Optional[List[List[Optional[str]]]] = None
+    active_micro_board_coords: Optional[List[int]] = None
 
 # --- Specific, Standalone Response Types ---
 # No base class is used to avoid the default argument inheritance issue.

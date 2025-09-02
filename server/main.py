@@ -26,7 +26,8 @@ async def handle_message(message_str, client_conn):
         msg_type = message.get("type")
 
         if msg_type == MessageType.CREATE_GAME:
-            game = game_manager.create_game()
+            game_mode = message.get("game_mode", "standard")
+            game = game_manager.create_game(game_mode)
             player_symbol = await game.add_client(client_conn, message.get("name", "Anonymous"))
             response = GameCreatedResponse(game_id=game.game_id, player_symbol=player_symbol)
             await client_conn.send(to_dict(response))
