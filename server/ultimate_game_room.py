@@ -81,8 +81,9 @@ class UltimateGame:
             self.macro_board[macro_row][macro_col] = micro_board_winner
             
             macro_board_winner = self._check_board_win(self.macro_board)
-            if macro_board_winner and macro_board_winner != 'draw':
-                self.winner = macro_board_winner
+            if macro_board_winner:
+                if macro_board_winner != 'draw':
+                    self.winner = macro_board_winner
                 self.game_over = True
                 self._record_game_result()
                 await self.broadcast_state()
@@ -101,15 +102,20 @@ class UltimateGame:
 
     def _check_board_win(self, board):
         """Checks a 3x3 board for a win or draw. Returns 'X', 'O', 'draw', or None."""
-        # Check rows and columns
+        # Check rows and columns for a winner, excluding 'draw' as a winning symbol
         for i in range(3):
-            if board[i][0] == board[i][1] == board[i][2] and board[i][0] is not None: return board[i][0]
-            if board[0][i] == board[1][i] == board[2][i] and board[0][i] is not None: return board[0][i]
-        # Check diagonals
-        if board[0][0] == board[1][1] == board[2][2] and board[0][0] is not None: return board[0][0]
-        if board[0][2] == board[1][1] == board[2][0] and board[0][2] is not None: return board[0][2]
-        # Check for draw
-        if not any(None in row for row in board): return 'draw'
+            if board[i][0] == board[i][1] == board[i][2] and board[i][0] not in [None, 'draw']:
+                return board[i][0]
+            if board[0][i] == board[1][i] == board[2][i] and board[0][i] not in [None, 'draw']:
+                return board[0][i]
+        # Check diagonals for a winner
+        if board[0][0] == board[1][1] == board[2][2] and board[0][0] not in [None, 'draw']:
+            return board[0][0]
+        if board[0][2] == board[1][1] == board[2][0] and board[0][2] not in [None, 'draw']:
+            return board[0][2]
+        # Check for a draw (all cells are filled)
+        if all(cell is not None for row in board for cell in row):
+            return 'draw'
         return None
 
     def _record_game_result(self):
