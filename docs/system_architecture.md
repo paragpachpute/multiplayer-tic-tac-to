@@ -3,13 +3,12 @@ graph TD
     subgraph "End Users"
         UserA[Player 1]
         UserB[Player 2]
-        UserC[Project Viewer]
+        UserC["Player vs. Computer"]
     end
 
     subgraph "Client Applications"
         direction LR
         Browser[Web Browser]
-        Android[Android App]
     end
 
     subgraph "Cloud Server Infrastructure (VPS)"
@@ -19,7 +18,6 @@ graph TD
             direction LR
             Port80[Port 80: HTTP]
             Port5000[Port 5000: API]
-            Port5556[Port 5556: TCP]
             Port8765[Port 8765: WebSocket]
         end
         
@@ -27,29 +25,31 @@ graph TD
 
         subgraph "Application Layer"
             direction LR
-            GameServer["Multi-Game Server (server.py)"]
+            GameServer["Multi-Game Server (main.py)"]
             APIServer["Leaderboard API (api_server.py)"]
         end
 
-        Database[(SQLite Database<br>game_results.db)]
-        
-        subgraph GameServer
+        subgraph "Game Server Components"
             direction TB
             RoomManager["Connection & Room Manager"]
-            GameRoom1["Game Room 1"]
-            GameRoom2["Game Room 2"]
-            GameRoomN["..."]
+            subgraph "Game Types"
+                GameRoom["Multiplayer Game Room"]
+                AIGameRoom["AI Game Room"]
+            end
+            subgraph "AI Engine"
+                ProcessPool["Process Pool Executor"]
+                Minimax["Minimax Algorithm (ai_logic.py)"]
+            end
         end
+
+        Database[(SQLite Database<br>game_results.db)]
     end
     
-    UserA -- "Plays Tic-Tac-Toe" --> Browser
-    UserB -- "Plays Tic-Tac-Toe" --> Android
-    UserC -- "Views Landing Page" --> Browser
+    UserA -- "Plays Multiplayer" --> Browser
+    UserB -- "Plays Multiplayer" --> Browser
+    UserC -- "Plays vs. AI" --> Browser
 
     %% Data Flows
-    Browser -- "HTTP GET /" --> Port80 --> Nginx
-    Nginx -- "Serves Landing Page" --> Browser
-    
     Browser -- "HTTP GET /ttt/" --> Port80 --> Nginx
     Nginx -- "Serves TTT App" --> Browser
 
@@ -58,19 +58,23 @@ graph TD
     APIServer -- "Reads from" --> Database
     APIServer -- "Returns Leaderboard JSON" --> Nginx --> Browser
 
-    Android -- "TCP Socket" --> Port5556 --> RoomManager
     Browser -- "WebSocket to /ttt/ws" --> Port80 --> Nginx
-    Nginx -- "Proxies to /ws" --> Port8765 --> RoomManager
+    Nginx -- "Proxies to /ws" --> RoomManager
     
-    RoomManager --> GameRoom1
-    RoomManager --> GameRoom2
+    RoomManager -- "Creates" --> GameRoom
+    RoomManager -- "Creates" --> AIGameRoom
     
-    GameRoom1 -- "Writes to" --> Database
-    GameRoom2 -- "Writes to" --> Database
+    AIGameRoom -- "Delegates CPU work to" --> ProcessPool
+    ProcessPool -- "Runs" --> Minimax
+    
+    GameRoom -- "Writes to" --> Database
+    AIGameRoom -- "Writes to" --> Database
 
     %% Styling
     style Nginx fill:#188,stroke:#333,stroke-width:2px
     style GameServer fill:#388,stroke:#333,stroke-width:2px
     style APIServer fill:#588,stroke:#333,stroke-width:2px
     style Database fill:#788,stroke:#333,stroke-width:2px
+    style ProcessPool fill:#c6538c,stroke:#333,stroke-width:2px
+    style Minimax fill:#c6538c,stroke:#333,stroke-width:2px
 ```

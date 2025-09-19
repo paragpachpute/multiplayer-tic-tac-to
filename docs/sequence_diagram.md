@@ -64,3 +64,40 @@ sequenceDiagram
     Nginx-->>BrowserClient: Relays JSON Response
     deactivate Nginx
 ```
+
+### "Play vs. Computer" Game Sequence
+
+```mermaid
+sequenceDiagram
+    participant BrowserClient
+    participant GameServer
+    participant ProcessPool
+    participant AILogic
+
+    BrowserClient->>GameServer: Sends message: {"type": "create_ai_game", "name": "..."}
+    GameServer->>GameServer: Creates AIGameRoom
+    GameServer-->>BrowserClient: Responds with GameCreated, broadcasts initial state
+
+    loop Game Loop
+        BrowserClient->>GameServer: Sends move: {"type":"move", "row":R, "col":C}
+        GameServer->>GameServer: Updates board with human move
+        GameServer->>GameServer: Checks for win/draw
+        
+        alt Game is not over
+            GameServer->>ProcessPool: run_in_executor(find_best_move, board)
+            activate ProcessPool
+            ProcessPool->>AILogic: find_best_move(board)
+            AILogic-->>ProcessPool: returns (row, col)
+            ProcessPool-->>GameServer: returns (row, col)
+            deactivate ProcessPool
+            
+            GameServer->>GameServer: Updates board with AI move
+            GameServer->>GameServer: Checks for win/draw
+        end
+        
+        GameServer-->>BrowserClient: Broadcasts final game state (with both moves)
+    end
+
+    Note over GameServer: Game is over.
+    GameServer->>Database: Records game result (win/draw)
+```
