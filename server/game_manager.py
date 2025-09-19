@@ -2,11 +2,12 @@ import logging
 import uuid
 from server.game_room import Game
 from server.ultimate_game_room import UltimateGame
+from server.ai_game_room import AIGameRoom
 
 active_games = {}
 
 def create_game(game_mode='standard'):
-    """Creates a new game room and returns its ID."""
+    """Creates a new multiplayer game room and returns it."""
     game_id = str(uuid.uuid4())[:4].upper()
     
     if game_mode == 'ultimate':
@@ -16,6 +17,13 @@ def create_game(game_mode='standard'):
         active_games[game_id] = Game(game_id, on_empty=remove_game)
         logging.info(f"New standard game created with ID: {game_id}")
         
+    return active_games[game_id]
+
+def create_ai_game(executor):
+    """Creates a new single-player AI game room and returns it."""
+    game_id = str(uuid.uuid4())[:4].upper()
+    active_games[game_id] = AIGameRoom(game_id, on_empty=remove_game, executor=executor)
+    logging.info(f"New AI game created with ID: {game_id}")
     return active_games[game_id]
 
 def get_game(game_id):

@@ -5,6 +5,7 @@ import websockets
 import sys
 import os
 from threading import Thread
+from concurrent.futures import ProcessPoolExecutor
 
 # --- Setup ---
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -16,6 +17,10 @@ from server.protocol import GameCreatedResponse, GameJoinedResponse, ErrorRespon
 from server.connection import ClientConnection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s')
+
+# --- Global Process Pool ---
+# This executor will be used to run CPU-bound AI calculations in a separate process.
+process_pool_executor = ProcessPoolExecutor()
 
 # --- Core Message Routing ---
 async def handle_message(message_str, client_conn):
@@ -31,6 +36,15 @@ async def handle_message(message_str, client_conn):
             player_symbol = await game.add_client(client_conn, message.get("name", "Anonymous"))
             response = GameCreatedResponse(game_id=game.game_id, player_symbol=player_symbol)
             await client_conn.send(to_dict(response))
+
+        elif msg_type == MessageType.CREATE_AI_GAME:
+            # For now, AI game is always standard mode
+            game = game_manager.create_ai_game(process_pool_executor)
+            player_symbol = await game.add_client(client_conn, message.get("name", "Anonymous"))
+            response = GameCreatedResponse(game_id=game.game_id, player_symbol=player_symbol)
+            await client_conn.send(to_dict(response))
+            # The AI game starts immediately
+            await game.start_game()
 
         elif msg_type == MessageType.JOIN_GAME:
             game_id = message.get("game_id")

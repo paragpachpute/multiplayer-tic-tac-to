@@ -12,6 +12,7 @@ class MessageType(str, Enum):
     
     # Client-to-server
     CREATE_GAME = "create_game"
+    CREATE_AI_GAME = "create_ai_game"
     JOIN_GAME = "join_game"
     MOVE = "move"
     RESTART = "restart"
