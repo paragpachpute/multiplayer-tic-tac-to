@@ -27,6 +27,8 @@ class GameState:
     game_over: bool
     winner: Optional[str]
     player_names: Dict[str, Optional[str]]
+    player_x_time: Optional[float] = None
+    player_o_time: Optional[float] = None
     # Fields for Ultimate Tic-Tac-Toe
     micro_boards: Optional[List[List[List[Optional[str]]]]] = None
     macro_board: Optional[List[List[Optional[str]]]] = None

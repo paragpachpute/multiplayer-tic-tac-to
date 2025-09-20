@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Dict, Optional
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
@@ -15,6 +16,10 @@ class Game:
         self.winner = None
         self.player_names: Dict[str, Optional[str]] = {"X": None, "O": None}
         self._on_empty = on_empty
+        # --- Timer State ---
+        self.player_x_time_bank = 60.0  # 1 minute for standard game
+        self.player_o_time_bank = 60.0
+        self.current_turn_start_time = None
 
     async def add_client(self, client_conn, name):
         if len(self.clients) >= 2:
@@ -28,6 +33,11 @@ class Game:
         
         self.player_names[player_symbol] = name
         logging.info(f"[Game {self.game_id}] Player {name} ({player_symbol}) joined.")
+
+        # Start the timer when the second player joins
+        if len(self.clients) == 2:
+            self.current_turn_start_time = time.time()
+
         return player_symbol
 
     async def reconnect_client(self, new_client_conn, player_symbol, name):
@@ -91,12 +101,35 @@ class Game:
         if self.game_over or client_conn.player_symbol != self.current_player:
             return
         
+        # --- Timer Logic ---
+        time_spent = time.time() - self.current_turn_start_time
+        if self.current_player == "X":
+            self.player_x_time_bank -= time_spent
+            if self.player_x_time_bank <= 0:
+                self.winner = "O"
+                self.game_over = True
+                self._record_game_result()
+                await self.broadcast_state()
+                return
+        else: # Player 'O'
+            self.player_o_time_bank -= time_spent
+            if self.player_o_time_bank <= 0:
+                self.winner = "X"
+                self.game_over = True
+                self._record_game_result()
+                await self.broadcast_state()
+                return
+
         row, col = move_data['row'], move_data['col']
         if self.board[row][col] is None:
-            self.board[row][col] = client_conn.player_symbol # Correctly use the wrapper
+            self.board[row][col] = client_conn.player_symbol
             self._check_win()
             if not self.game_over: self._check_draw()
-            if not self.game_over: self.current_player = "O" if self.current_player == "X" else "X"
+            
+            if not self.game_over: 
+                self.current_player = "O" if self.current_player == "X" else "X"
+                self.current_turn_start_time = time.time() # Reset timer for the next player
+
             await self.broadcast_state()
 
     async def restart_game(self):
@@ -104,6 +137,10 @@ class Game:
         self.current_player = "X"
         self.game_over = False
         self.winner = None
+        # Reset timers
+        self.player_x_time_bank = 60.0
+        self.player_o_time_bank = 60.0
+        self.current_turn_start_time = time.time()
         logging.info(f"[Game {self.game_id}] Restarted.")
         await self.broadcast_state()
 
@@ -113,7 +150,9 @@ class Game:
             current_player=self.current_player,
             game_over=self.game_over,
             winner=self.winner,
-            player_names=self.player_names
+            player_names=self.player_names,
+            player_x_time=self.player_x_time_bank,
+            player_o_time=self.player_o_time_bank
         )
         response = GameStateResponse(state=game_state)
         
