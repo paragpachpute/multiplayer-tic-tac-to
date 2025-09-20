@@ -33,8 +33,8 @@ graph TD
             direction TB
             RoomManager["Connection & Room Manager"]
             subgraph "Game Types"
-                GameRoom["Multiplayer Game Room"]
-                AIGameRoom["AI Game Room"]
+                GameRoom["Multiplayer Game Room<br>(Handles Timer Logic)"]
+                AIGameRoom["AI Game Room<br>(Handles Timer Logic)"]
             end
             subgraph "AI Engine"
                 ProcessPool["Process Pool Executor"]

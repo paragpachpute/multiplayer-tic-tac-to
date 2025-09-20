@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import List, Optional, Dict
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
@@ -20,6 +21,11 @@ class UltimateGame:
         self.game_over = False
         self.winner = None
 
+        # --- Timer State ---
+        self.player_x_time_bank = 600.0  # 10 minutes for ultimate game
+        self.player_o_time_bank = 600.0
+        self.current_turn_start_time = None
+
     # --- Client Management ---
     async def add_client(self, client_conn, name):
         if len(self.clients) >= 2: return None
@@ -30,6 +36,11 @@ class UltimateGame:
         self.clients.add(client_conn)
         self.player_names[player_symbol] = name
         logging.info(f"[Ultimate Game {self.game_id}] Player {name} ({player_symbol}) joined.")
+
+        # Start the timer when the second player joins
+        if len(self.clients) == 2:
+            self.current_turn_start_time = time.time()
+
         return player_symbol
 
     async def reconnect_client(self, new_client_conn, player_symbol, name):
@@ -52,6 +63,25 @@ class UltimateGame:
         logging.info(f"[Game {self.game_id}] Received move: {move_data} from {client_conn.player_name}. Active board: {self.active_micro_board_coords}")
         if self.game_over or client_conn.player_symbol != self.current_player: return
 
+        # --- Timer Logic ---
+        time_spent = time.time() - self.current_turn_start_time
+        if self.current_player == "X":
+            self.player_x_time_bank -= time_spent
+            if self.player_x_time_bank <= 0:
+                self.winner = "O"
+                self.game_over = True
+                self._record_game_result()
+                await self.broadcast_state()
+                return
+        else: # Player 'O'
+            self.player_o_time_bank -= time_spent
+            if self.player_o_time_bank <= 0:
+                self.winner = "X"
+                self.game_over = True
+                self._record_game_result()
+                await self.broadcast_state()
+                return
+
         # The client sends absolute row/col from 0-8. We derive the board and cell coords.
         row, col = move_data['row'], move_data['col']
         macro_row, macro_col = row // 3, col // 3
@@ -59,17 +89,11 @@ class UltimateGame:
         micro_board_index = macro_row * 3 + macro_col
 
         # --- Validate Move ---
-        # 1. Is the move in the correct active micro board?
         if self.active_micro_board_coords and (macro_row, macro_col) != tuple(self.active_micro_board_coords):
-            logging.warning(f"[Game {self.game_id}] Invalid move: not in active micro board.")
             return
-        # 2. Is the micro board already won or drawn?
         if self.macro_board[macro_row][macro_col] is not None:
-            logging.warning(f"[Game {self.game_id}] Invalid move: micro board is already finished.")
             return
-        # 3. Is the cell already taken?
         if self.micro_boards[micro_board_index][micro_row][micro_col] is not None:
-            logging.warning(f"[Game {self.game_id}] Invalid move: cell is already taken.")
             return
 
         # --- Apply Move ---
@@ -98,22 +122,20 @@ class UltimateGame:
 
         # --- Switch Player and Broadcast ---
         self.current_player = "O" if self.current_player == "X" else "X"
+        self.current_turn_start_time = time.time() # Reset timer for the next player
         await self.broadcast_state()
 
     def _check_board_win(self, board):
         """Checks a 3x3 board for a win or draw. Returns 'X', 'O', 'draw', or None."""
-        # Check rows and columns for a winner, excluding 'draw' as a winning symbol
         for i in range(3):
             if board[i][0] == board[i][1] == board[i][2] and board[i][0] not in [None, 'draw']:
                 return board[i][0]
             if board[0][i] == board[1][i] == board[2][i] and board[0][i] not in [None, 'draw']:
                 return board[0][i]
-        # Check diagonals for a winner
         if board[0][0] == board[1][1] == board[2][2] and board[0][0] not in [None, 'draw']:
             return board[0][0]
         if board[0][2] == board[1][1] == board[2][0] and board[0][2] not in [None, 'draw']:
             return board[0][2]
-        # Check for a draw (all cells are filled)
         if all(cell is not None for row in board for cell in row):
             return 'draw'
         return None
@@ -130,16 +152,17 @@ class UltimateGame:
         database.record_game_result(winner_name, loser_name, outcome, game_mode='ultimate')
 
     async def broadcast_state(self):
-        # For ultimate games, the main 'board' is None. The state is in the other fields.
         game_state = GameState(
-            board=None, # Standard board is unused
+            board=None,
             micro_boards=self.micro_boards,
             macro_board=self.macro_board,
             active_micro_board_coords=self.active_micro_board_coords,
             current_player=self.current_player,
             game_over=self.game_over,
             winner=self.winner,
-            player_names=self.player_names
+            player_names=self.player_names,
+            player_x_time=self.player_x_time_bank,
+            player_o_time=self.player_o_time_bank
         )
         response = GameStateResponse(state=game_state)
         
@@ -148,3 +171,17 @@ class UltimateGame:
                 await client_conn.send(to_dict(response))
             except Exception:
                 pass
+
+    async def restart_game(self):
+        self.macro_board = [[None for _ in range(3)] for _ in range(3)]
+        self.micro_boards = [[[None for _ in range(3)] for _ in range(3)] for _ in range(9)]
+        self.active_micro_board_coords = None
+        self.current_player = "X"
+        self.game_over = False
+        self.winner = None
+        # Reset timers
+        self.player_x_time_bank = 600.0
+        self.player_o_time_bank = 600.0
+        self.current_turn_start_time = time.time()
+        logging.info(f"[Ultimate Game {self.game_id}] Restarted.")
+        await self.broadcast_state()

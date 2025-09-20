@@ -18,19 +18,19 @@ sequenceDiagram
     ClientB->>GameServer: Sends Register message: {"type":"register", "name":"..."}
 
     Note over GameServer: Both players registered. Game begins.
-    GameServer->>ClientA: Broadcasts initial game state
-    GameServer->>ClientB: Broadcasts initial game state
+    GameServer->>ClientA: Broadcasts initial game state (with timers)
+    GameServer->>ClientB: Broadcasts initial game state (with timers)
 
     loop Game Loop
         ClientA->>GameServer: Sends move: {"type":"move", "row":R, "col":C}
-        GameServer->>GameServer: Updates board, checks for win/draw
-        GameServer->>ClientA: Broadcasts updated game state
-        GameServer->>ClientB: Broadcasts updated game state
+        GameServer->>GameServer: Updates board, calculates time spent, checks for win/draw/timeout
+        GameServer->>ClientA: Broadcasts updated game state (with timers)
+        GameServer->>ClientB: Broadcasts updated game state (with timers)
         
         ClientB->>GameServer: Sends move: {"type":"move", "row":R, "col":C}
-        GameServer->>GameServer: Updates board, checks for win/draw
-        GameServer->>ClientA: Broadcasts updated game state
-        GameServer->>ClientB: Broadcasts updated game state
+        GameServer->>GameServer: Updates board, calculates time spent, checks for win/draw/timeout
+        GameServer->>ClientA: Broadcasts updated game state (with timers)
+        GameServer->>ClientB: Broadcasts updated game state (with timers)
     end
 
     Note over GameServer: Game is over.
