@@ -38,8 +38,8 @@ async def handle_message(message_str, client_conn):
             await client_conn.send(to_dict(response))
 
         elif msg_type == MessageType.CREATE_AI_GAME:
-            # For now, AI game is always standard mode
-            game = game_manager.create_ai_game(process_pool_executor)
+            game_mode = message.get("game_mode", "standard")
+            game = game_manager.create_ai_game(process_pool_executor, game_mode)
             player_symbol = await game.add_client(client_conn, message.get("name", "Anonymous"))
             response = GameCreatedResponse(game_id=game.game_id, player_symbol=player_symbol)
             await client_conn.send(to_dict(response))
