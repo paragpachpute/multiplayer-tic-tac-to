@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+import os
 from typing import Dict, Optional
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
@@ -17,8 +18,8 @@ class Game:
         self.player_names: Dict[str, Optional[str]] = {"X": None, "O": None}
         self._on_empty = on_empty
         # --- Timer State ---
-        self.player_x_time_bank = 60.0  # 1 minute for standard game
-        self.player_o_time_bank = 60.0
+        self.player_x_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
+        self.player_o_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
         self.current_turn_start_time = None
 
     async def add_client(self, client_conn, name):
@@ -138,8 +139,8 @@ class Game:
         self.game_over = False
         self.winner = None
         # Reset timers
-        self.player_x_time_bank = 60.0
-        self.player_o_time_bank = 60.0
+        self.player_x_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
+        self.player_o_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
         self.current_turn_start_time = time.time()
         logging.info(f"[Game {self.game_id}] Restarted.")
         await self.broadcast_state()

@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import time
+import os
 from typing import Dict, Optional
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
@@ -15,6 +17,9 @@ class AIGameRoom(Game):
         super().__init__(game_id, on_empty)
         self.executor = executor
         self.player_names: Dict[str, Optional[str]] = {"X": None, "O": "Computer"}
+        # AI game is always standard, so timer is 1 minute
+        self.player_x_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
+        self.player_o_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60')) # AI's timer is not really used, but we keep it for consistency
 
     async def add_client(self, client_conn, name):
         """Only allows one human player ('X') to join."""
@@ -32,8 +37,9 @@ class AIGameRoom(Game):
         return player_symbol
 
     async def start_game(self):
-        """Starts the game by broadcasting the initial state."""
+        """Starts the game by broadcasting the initial state and starting the timer."""
         logging.info(f"[AI Game {self.game_id}] Starting game.")
+        self.current_turn_start_time = time.time()
         await self.broadcast_state()
 
     async def handle_move(self, client_conn, move_data):
@@ -41,6 +47,16 @@ class AIGameRoom(Game):
         if self.game_over or client_conn.player_symbol != self.current_player:
             return
         
+        # --- Timer Logic for Human Player ---
+        time_spent = time.time() - self.current_turn_start_time
+        self.player_x_time_bank -= time_spent
+        if self.player_x_time_bank <= 0:
+            self.winner = "O" # Computer wins if human runs out of time
+            self.game_over = True
+            self._record_game_result()
+            await self.broadcast_state()
+            return
+
         # 1. Process the human's move
         row, col = move_data['row'], move_data['col']
         if self.board[row][col] is None:
@@ -65,7 +81,6 @@ class AIGameRoom(Game):
         
         # Run the blocking AI calculation in the process pool
         loop = asyncio.get_running_loop()
-        # The AI logic needs a copy of the board to prevent race conditions
         board_copy = [row[:] for row in self.board]
         ai_move = await loop.run_in_executor(
             self.executor, find_best_move, board_copy
@@ -79,8 +94,17 @@ class AIGameRoom(Game):
             self._check_win()
             if not self.game_over: self._check_draw()
         
-        # Switch back to the human's turn
+        # Switch back to the human's turn and reset the timer
         if not self.game_over:
             self.current_player = "X"
+            self.current_turn_start_time = time.time()
             
+        await self.broadcast_state()
+
+    async def restart_game(self):
+        """Resets the game to its initial state."""
+        await super().restart_game() # Call the parent restart logic
+        # Reset AI-specific state
+        self.player_names = {"X": list(self.clients)[0].player_name if self.clients else None, "O": "Computer"}
+        self.current_turn_start_time = time.time()
         await self.broadcast_state()

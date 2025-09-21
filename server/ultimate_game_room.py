@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 from typing import List, Optional, Dict
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
@@ -22,8 +23,8 @@ class UltimateGame:
         self.winner = None
 
         # --- Timer State ---
-        self.player_x_time_bank = 600.0  # 10 minutes for ultimate game
-        self.player_o_time_bank = 600.0
+        self.player_x_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_ULTIMATE', '600'))
+        self.player_o_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_ULTIMATE', '600'))
         self.current_turn_start_time = None
 
     # --- Client Management ---
@@ -180,8 +181,8 @@ class UltimateGame:
         self.game_over = False
         self.winner = None
         # Reset timers
-        self.player_x_time_bank = 600.0
-        self.player_o_time_bank = 600.0
+        self.player_x_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_ULTIMATE', '600'))
+        self.player_o_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_ULTIMATE', '600'))
         self.current_turn_start_time = time.time()
         logging.info(f"[Ultimate Game {self.game_id}] Restarted.")
         await self.broadcast_state()
