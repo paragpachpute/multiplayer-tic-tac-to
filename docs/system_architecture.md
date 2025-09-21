@@ -33,12 +33,14 @@ graph TD
             direction TB
             RoomManager["Connection & Room Manager"]
             subgraph "Game Types"
-                GameRoom["Multiplayer Game Room<br>(Handles Timer Logic)"]
-                AIGameRoom["AI Game Room<br>(Handles Timer Logic)"]
+                GameRoom["Multiplayer Game Room<br>(Standard & Ultimate)"]
+                AIGameRoom["Standard AI Game Room"]
+                UltimateAIGameRoom["Ultimate AI Game Room"]
             end
             subgraph "AI Engine"
                 ProcessPool["Process Pool Executor"]
-                Minimax["Minimax Algorithm (ai_logic.py)"]
+                StandardMinimax["Standard Minimax (ai_logic.py)"]
+                UltimateMinimax["Ultimate Minimax w/ Heuristics<br>(ultimate_ai_logic.py)"]
             end
         end
 
@@ -63,12 +65,16 @@ graph TD
     
     RoomManager -- "Creates" --> GameRoom
     RoomManager -- "Creates" --> AIGameRoom
+    RoomManager -- "Creates" --> UltimateAIGameRoom
     
     AIGameRoom -- "Delegates CPU work to" --> ProcessPool
-    ProcessPool -- "Runs" --> Minimax
+    UltimateAIGameRoom -- "Delegates CPU work to" --> ProcessPool
+    ProcessPool -- "Runs" --> StandardMinimax
+    ProcessPool -- "Runs" --> UltimateMinimax
     
     GameRoom -- "Writes to" --> Database
     AIGameRoom -- "Writes to" --> Database
+    UltimateAIGameRoom -- "Writes to" --> Database
 
     %% Styling
     style Nginx fill:#188,stroke:#333,stroke-width:2px
@@ -76,5 +82,6 @@ graph TD
     style APIServer fill:#588,stroke:#333,stroke-width:2px
     style Database fill:#788,stroke:#333,stroke-width:2px
     style ProcessPool fill:#c6538c,stroke:#333,stroke-width:2px
-    style Minimax fill:#c6538c,stroke:#333,stroke-width:2px
+    style StandardMinimax fill:#c6538c,stroke:#333,stroke-width:2px
+    style UltimateMinimax fill:#c6538c,stroke:#333,stroke-width:2px
 ```

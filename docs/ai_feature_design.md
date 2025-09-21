@@ -78,3 +78,28 @@ The implementation will be broken down into the following discrete tasks:
     *   When this message is received, it will instantiate the new `AIGameRoom` instead of a standard `Game` room.
 
 This structured approach ensures that all components are built and integrated correctly, resulting in a robust and performant "Play vs. Computer" feature.
+
+---
+
+## 5. Extension for Ultimate Tic-Tac-Toe
+
+The architectural pattern established for the standard AI was successfully extended to support an AI opponent for the **Ultimate Tic-Tac-Toe** mode.
+
+### 5.1. Core Logic
+
+*   **Algorithm:** Due to the immense complexity and vast state space of Ultimate Tic-Tac-Toe, a pure Minimax that searches to the end of the game is not feasible. Instead, the Ultimate AI uses **Minimax with a limited search depth** (looking only a few moves ahead).
+*   **Heuristic Evaluation:** To make decisions without seeing the end of the game, the AI uses a **heuristic evaluation function**. This function "scores" the board state by analyzing various factors, including:
+    *   Control of the 3x3 macro-board.
+    *   Winning individual micro-boards.
+    *   Creating two-in-a-row patterns in both macro and micro boards.
+    *   Forcing the opponent into undesirable or completed micro-boards.
+
+### 5.2. Implementation
+
+The implementation followed the same pattern as the standard AI:
+
+*   A new logic file, `ultimate_ai_logic.py`, was created to house the more complex algorithm and heuristic function.
+*   A new game room, `UltimateAIGameRoom`, was created to manage the state and interaction between the human player and the Ultimate AI.
+*   The main server was updated to check the `game_mode` parameter when a `create_ai_game` request is received, allowing it to create the appropriate AI game room.
+
+This extension demonstrates the scalability of the initial design, allowing new AI opponents to be added without fundamentally changing the server's concurrent architecture.
