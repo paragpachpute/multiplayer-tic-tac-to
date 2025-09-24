@@ -112,7 +112,10 @@ class UltimateAIGameRoom(UltimateGame):
             return
 
         logging.info(f"[Ultimate AI Game {self.game_id}] AI is thinking...")
-        
+
+        # Start timing the AI's turn
+        ai_turn_start_time = time.time()
+
         # Prepare the state for the AI function
         current_state = {
             "micro_boards": [row[:] for row in self.micro_boards],
@@ -124,7 +127,17 @@ class UltimateAIGameRoom(UltimateGame):
         ai_move = await loop.run_in_executor(
             self.executor, find_best_move, current_state
         )
-        
+
+        # --- Timer Logic for AI Player ---
+        ai_thinking_time = time.time() - ai_turn_start_time
+        self.player_o_time_bank -= ai_thinking_time
+        if self.player_o_time_bank <= 0:
+            self.winner = "X" # Human wins if AI runs out of time
+            self.game_over = True
+            self._record_game_result()
+            await self.broadcast_state()
+            return
+
         if ai_move is None:
             logging.warning(f"[Ultimate AI Game {self.game_id}] AI returned no move. Game might be a draw.")
             self.game_over = True # Or handle as draw
@@ -132,7 +145,7 @@ class UltimateAIGameRoom(UltimateGame):
             return
 
         row, col = ai_move
-        logging.info(f"[Ultimate AI Game {self.game_id}] AI chose move: ({row}, {col})")
+        logging.info(f"[Ultimate AI Game {self.game_id}] AI chose move: ({row}, {col}) after {ai_thinking_time:.2f}s")
 
         # Apply the AI's move
         macro_row, macro_col = row // 3, col // 3
@@ -149,7 +162,7 @@ class UltimateAIGameRoom(UltimateGame):
                 if macro_board_winner != 'draw': self.winner = macro_board_winner
                 self.game_over = True
                 self._record_game_result()
-        
+
         # Determine next active board
         next_active_coords = [micro_row, micro_col]
         if self.macro_board[next_active_coords[0]][next_active_coords[1]] is not None:
@@ -161,7 +174,7 @@ class UltimateAIGameRoom(UltimateGame):
         if not self.game_over:
             self.current_player = "X"
             self.current_turn_start_time = time.time()
-            
+
         await self.broadcast_state()
 
     async def restart_game(self):

@@ -78,27 +78,40 @@ class AIGameRoom(Game):
             return
 
         logging.info(f"[AI Game {self.game_id}] AI is thinking...")
-        
+
+        # Start timing the AI's turn
+        ai_turn_start_time = time.time()
+
         # Run the blocking AI calculation in the process pool
         loop = asyncio.get_running_loop()
         board_copy = [row[:] for row in self.board]
         ai_move = await loop.run_in_executor(
             self.executor, find_best_move, board_copy
         )
-        
+
+        # --- Timer Logic for AI Player ---
+        ai_thinking_time = time.time() - ai_turn_start_time
+        self.player_o_time_bank -= ai_thinking_time
+        if self.player_o_time_bank <= 0:
+            self.winner = "X" # Human wins if AI runs out of time
+            self.game_over = True
+            self._record_game_result()
+            await self.broadcast_state()
+            return
+
         row, col = ai_move
-        logging.info(f"[AI Game {self.game_id}] AI chose move: ({row}, {col})")
+        logging.info(f"[AI Game {self.game_id}] AI chose move: ({row}, {col}) after {ai_thinking_time:.2f}s")
 
         if self.board[row][col] is None:
             self.board[row][col] = 'O'
             self._check_win()
             if not self.game_over: self._check_draw()
-        
+
         # Switch back to the human's turn and reset the timer
         if not self.game_over:
             self.current_player = "X"
             self.current_turn_start_time = time.time()
-            
+
         await self.broadcast_state()
 
     async def restart_game(self):
