@@ -82,3 +82,42 @@ def get_leaderboard():
         player['rank'] = i + 1
         
     return leaderboard
+
+def get_games_played_per_day(days_limit=7):
+    """
+    Counts the number of games played per day for the last N days.
+
+    Args:
+        days_limit (int): The number of past days to retrieve data for.
+
+    Returns:
+        list: A list of dictionaries, e.g., [{"date": "YYYY-MM-DD", "count": N}].
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # The query groups by the date part of the timestamp and counts the entries.
+    # It filters for records within the specified date range.
+    query = """
+        SELECT
+            DATE(timestamp) as game_date,
+            COUNT(*) as game_count
+        FROM
+            game_results
+        WHERE
+            DATE(timestamp) >= DATE('now', '-' || ? || ' days')
+        GROUP BY
+            game_date
+        ORDER BY
+            game_date ASC;
+    """
+    
+    cursor.execute(query, (days_limit,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    # Format the data for the API response
+    games_per_day = [{"date": row[0], "count": row[1]} for row in rows]
+    
+    return games_per_day
