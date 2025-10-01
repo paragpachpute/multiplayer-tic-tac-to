@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import os
+import asyncio
 from typing import Dict, Optional
 from database import database
 from server.protocol import GameState, GameStateResponse, to_dict
@@ -21,17 +22,24 @@ class Game:
         self.player_x_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
         self.player_o_time_bank = float(os.getenv('PLAYER_TIMER_SECONDS_STANDARD', '60'))
         self.current_turn_start_time = None
+        # --- Grace Period State ---
+        self.grace_period_timer = None
+        self.grace_period_duration = float(os.getenv('GAME_GRACE_PERIOD_SECONDS', '600'))  # 10 minutes
+        self.is_in_grace_period = False
 
     async def add_client(self, client_conn, name):
         if len(self.clients) >= 2:
             return None
+
+        # Cancel grace period if someone joins
+        self._cancel_grace_period()
 
         player_symbol = "X" if not self.clients else "O"
         client_conn.player_symbol = player_symbol
         client_conn.player_name = name
         client_conn.game_id = self.game_id
         self.clients.add(client_conn)
-        
+
         self.player_names[player_symbol] = name
         logging.info(f"[Game {self.game_id}] Player {name} ({player_symbol}) joined.")
 
@@ -43,13 +51,16 @@ class Game:
 
     async def reconnect_client(self, new_client_conn, player_symbol, name):
         """Replaces a disconnected client with a new connection."""
+        # Cancel grace period if someone reconnects
+        self._cancel_grace_period()
+
         # Find the old, disconnected client object to remove it
         old_client = None
         for client in self.clients:
             if client.player_symbol == player_symbol:
                 old_client = client
                 break
-        
+
         if old_client:
             self.clients.remove(old_client)
 
@@ -58,15 +69,45 @@ class Game:
         new_client_conn.player_name = name
         new_client_conn.game_id = self.game_id
         self.clients.add(new_client_conn)
-        
+
         self.player_names[player_symbol] = name
         logging.info(f"[Game {self.game_id}] Player {name} ({player_symbol}) reconnected.")
+
+    async def _start_grace_period(self):
+        """Start grace period timer before removing empty game."""
+        if self.grace_period_timer:
+            return  # Already in grace period
+
+        self.is_in_grace_period = True
+        logging.info(f"[Game {self.game_id}] Starting grace period ({self.grace_period_duration}s)")
+
+        async def grace_period_task():
+            try:
+                await asyncio.sleep(self.grace_period_duration)
+                # Timer completed, remove game
+                logging.info(f"[Game {self.game_id}] Grace period expired, removing game")
+                self._on_empty(self.game_id)
+            except asyncio.CancelledError:
+                # Timer was cancelled (someone reconnected)
+                logging.info(f"[Game {self.game_id}] Grace period cancelled - player reconnected")
+
+        self.grace_period_timer = asyncio.create_task(grace_period_task())
+
+    def _cancel_grace_period(self):
+        """Cancel the grace period timer."""
+        if self.grace_period_timer and not self.grace_period_timer.done():
+            self.grace_period_timer.cancel()
+            self.grace_period_timer = None
+            self.is_in_grace_period = False
+            logging.info(f"[Game {self.game_id}] Grace period cancelled")
 
     async def remove_client(self, client_conn):
         self.clients.remove(client_conn)
         logging.info(f"Client {client_conn.player_name} disconnected from Game {self.game_id}")
+
         if not self.clients:
-            self._on_empty(self.game_id)
+            # No clients left - start grace period instead of immediate removal
+            await self._start_grace_period()
         else:
             # Don't end the game immediately, allow for reconnection
             pass

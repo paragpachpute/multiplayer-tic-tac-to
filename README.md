@@ -46,3 +46,18 @@ This server handles the actual gameplay for all clients.
     *This will start the asyncio server, listening for TCP connections on port `5556` and WebSocket connections on port `8765`.*
 
 Both backend servers are now running and ready to accept connections from any of the game clients.
+
+---
+
+## Game State Management
+
+### Grace Period for Reconnections
+
+The server implements a grace period system to handle temporary disconnections:
+
+- **Grace Period Duration**: 10 minutes (configurable via `GAME_GRACE_PERIOD_SECONDS` environment variable)
+- **Automatic Cleanup**: Games with no connected players are kept alive for the grace period to allow reconnections
+- **Smart Cancellation**: Grace period is automatically cancelled when players reconnect or new players join
+- **Applies to**: Both standard and Ultimate Tic-Tac-Toe multiplayer games
+
+This ensures that temporary disconnections (like app switching on mobile) don't immediately destroy game sessions, providing a better user experience when sharing game IDs with friends.
