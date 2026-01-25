@@ -1,8 +1,9 @@
 import sqlite3
 import logging
+import os
 from datetime import datetime
 
-DB_FILE = "database/game_results.db"
+DB_FILE = os.getenv('DATABASE_FILE', 'database/game_results.db')
 
 def initialize_database():
     """Creates or updates the game_results table."""
@@ -33,6 +34,14 @@ def initialize_database():
     conn.close()
     logging.info("Database initialized.")
 
+def reset_database():
+    """Deletes existing database file and creates a fresh one. Used for test mode."""
+    if os.path.exists(DB_FILE):
+        os.remove(DB_FILE)
+        logging.info(f"Deleted existing database: {DB_FILE}")
+    initialize_database()
+    logging.info(f"Fresh database created: {DB_FILE}")
+
 def record_game_result(winner_name, loser_name, outcome, game_mode='standard'):
     """Records the result of a single game to the database."""
     conn = sqlite3.connect(DB_FILE)
@@ -51,36 +60,69 @@ def get_leaderboard():
     """Calculates and returns the player leaderboard."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    
+
     # Get all unique player names
     cursor.execute("SELECT winner_name FROM game_results WHERE winner_name IS NOT NULL")
     winners = [row[0] for row in cursor.fetchall()]
     cursor.execute("SELECT loser_name FROM game_results WHERE loser_name IS NOT NULL")
     losers = [row[0] for row in cursor.fetchall()]
     all_names = set(winners + losers)
-    
+
     leaderboard = []
     for name in all_names:
         # Calculate wins
         cursor.execute("SELECT COUNT(*) FROM game_results WHERE winner_name = ? AND outcome = 'win'", (name,))
         wins = cursor.fetchone()[0]
-        
+
+        # Calculate losses
+        cursor.execute("SELECT COUNT(*) FROM game_results WHERE loser_name = ? AND outcome = 'win'", (name,))
+        losses = cursor.fetchone()[0]
+
         # Calculate draws
         cursor.execute("SELECT COUNT(*) FROM game_results WHERE outcome = 'draw' AND (winner_name = ? OR loser_name = ?)", (name, name))
         draws = cursor.fetchone()[0]
-        
-        score = (wins * 3) + (draws * 1)
-        leaderboard.append({"name": name, "wins": wins, "draws": draws, "score": score})
-        
+
+        # Calculate total games and win percentage
+        total_games = wins + losses + draws
+        if total_games > 0:
+            win_percentage = round((wins / total_games) * 100, 2)
+        else:
+            win_percentage = 0.0
+
+        # Get last game played date
+        cursor.execute("SELECT MAX(timestamp) FROM game_results WHERE winner_name = ? OR loser_name = ?", (name, name))
+        last_timestamp = cursor.fetchone()[0]
+
+        # Format the date
+        try:
+            if last_timestamp:
+                last_game_date = datetime.fromisoformat(last_timestamp).strftime("%Y-%m-%d")
+            else:
+                last_game_date = "N/A"
+        except (ValueError, AttributeError):
+            last_game_date = "N/A"
+
+        leaderboard.append({
+            "name": name,
+            "wins": wins,
+            "losses": losses,
+            "draws": draws,
+            "win_percentage": win_percentage,
+            "last_game_date": last_game_date
+        })
+
     conn.close()
-    
-    # Sort by score (descending) and then by name (ascending)
-    leaderboard.sort(key=lambda x: (-x['score'], x['name']))
-    
+
+    # Sort by wins (descending), then draws (descending), then losses (descending)
+    leaderboard.sort(key=lambda x: (-x['wins'], -x['draws'], -x['losses']))
+
+    # Limit to top 10 players
+    leaderboard = leaderboard[:10]
+
     # Add ranks
     for i, player in enumerate(leaderboard):
         player['rank'] = i + 1
-        
+
     return leaderboard
 
 def get_games_played_per_day(days_limit=7):

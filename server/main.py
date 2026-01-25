@@ -121,7 +121,11 @@ async def connection_handler(client_conn):
 # --- Main Entrypoint ---
 async def main_async():
     """Initializes database and starts all servers."""
-    database.initialize_database()
+    # Check if running in test mode
+    if os.getenv('TEST_MODE') == 'true':
+        database.reset_database()
+    else:
+        database.initialize_database()
     
     async def ws_handler(websocket):
         await connection_handler(ClientConnection(websocket))
