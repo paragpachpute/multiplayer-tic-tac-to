@@ -20,3 +20,4 @@ Thumbs.db
 # IMPORTANT: This file contains sensitive information and should not be committed.
 server/config.py
 database/game_results.db
+database/test_game_results.db
