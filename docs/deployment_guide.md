@@ -57,21 +57,16 @@ server {
   listen 80;
   server_name pparag.dev www.pparag.dev;
 
-  # Change 1: The root location now points to the new landing page directory.
   location / {
     root /var/www/html;
     try_files $uri $uri/ /index.html;
   }
 
-  # Change 2: A new location block is added for the Tic-Tac-Toe app.
-  # It uses 'alias' to serve files from a different directory.
   location /ttt/ {
     alias /var/www/ttt/;
     try_files $uri $uri/ /index.html;
   }
 
-  # Change 3: The API location is updated to match the new path.
-  # The proxy_pass URL is unchanged and will work correctly.
   location /ttt/api/ {
     proxy_pass http://143.198.107.112:5000/;
     proxy_set_header Host $host;
@@ -81,7 +76,6 @@ server {
     proxy_redirect off;
   }
 
-  # Change 4: The WebSocket location is updated to match the new path.
   location /ttt/ws {
     proxy_pass http://143.198.107.112:8765;
     proxy_http_version 1.1;
